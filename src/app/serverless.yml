@@ -1,0 +1,62 @@
+
+service: app
+
+frameworkVersion: '2'
+
+custom:
+  tableName: 'people-table-${self:provider.stage}'
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  stage: dev
+  region: us-east-2
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource:
+        - { "Fn::GetAtt": ["UsersDynamoDBTable", "Arn" ] }
+  environment:
+    PEOPLE_TABLE: ${self:custom.tableName}
+
+functions:
+  hello:
+    handler: index.handler
+    name: SWAPI
+    events:
+      - http: ANY /
+      - http: 'ANY {proxy+}'
+  getPerson:
+    handler: index.handler
+    events:
+      - http: 'GET /people/{proxy+}'
+  createPerson:
+    handler: index.handler
+    events:
+      - http: 'POST /people'
+
+
+resources:
+  Resources:
+    UsersDynamoDBTable:
+      Type: 'AWS::DynamoDB::Table'
+      Properties:
+        AttributeDefinitions:
+          -
+            AttributeName: peopleId
+            AttributeType: S
+        KeySchema:
+          -
+            AttributeName: peopleId
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: ${self:custom.tableName}
+
